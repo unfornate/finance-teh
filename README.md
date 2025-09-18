@@ -29,3 +29,4 @@ npm run lint
 ```
 
 Приложение запускается локально на `http://localhost:5173`.
+# finance-teh
