@@ -43,6 +43,8 @@ const DATE_FORMATS = [
   'YYYY/MM/DD',
 ];
 
+const CAN_USE_WORKER = typeof Worker !== 'undefined';
+
 interface HeaderMap {
   [key: string]: string | undefined;
 }
@@ -182,10 +184,26 @@ export async function parseFiles(
     const text = decodeContent(buffer);
     const delimiter = detectDelimiter(text);
 
-    const parsed = Papa.parse<Record<string, unknown>>(text, {
-      header: true,
-      skipEmptyLines: true,
-      delimiter,
+    const parsed = await new Promise<Papa.ParseResult<Record<string, unknown>>>((resolve, reject) => {
+      const commonConfig = {
+        header: true,
+        skipEmptyLines: 'greedy' as const,
+        delimiter,
+        error: (error: Error) => reject(error),
+      };
+
+      if (CAN_USE_WORKER) {
+        Papa.parse<Record<string, unknown>>(text, {
+          ...commonConfig,
+          worker: true,
+          complete: (results: Papa.ParseResult<Record<string, unknown>>) => resolve(results),
+        });
+      } else {
+        Papa.parse<Record<string, unknown>>(text, {
+          ...commonConfig,
+          complete: (results: Papa.ParseResult<Record<string, unknown>>) => resolve(results),
+        });
+      }
     });
 
     if (parsed.errors.length > 0) {
