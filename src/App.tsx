@@ -1,86 +1,84 @@
 import React from 'react';
-import { AppStateProvider, useAppState } from './context/AppStateContext';
-import UploadSection from './features/upload/UploadSection';
-import DashboardSection from './features/dashboard/DashboardSection';
-import OperationsSection from './features/operations/OperationsSection';
-import CounterpartiesSection from './features/counterparties/CounterpartiesSection';
-import RulesSection from './features/rules/RulesSection';
-import InvestSection from './features/invest/InvestSection';
-import RegularsSection from './features/regulars/RegularsSection';
-import AnomaliesSection from './features/anomalies/AnomaliesSection';
-import ExportSection from './features/export/ExportSection';
-import IncludeInvestToggle from './components/IncludeInvestToggle';
+import { CRMProvider } from './context/CRMContext';
+import OverviewPage from './pages/OverviewPage';
+import IntakePage from './pages/IntakePage';
+import ClientsPage from './pages/ClientsPage';
+import UnlockPage from './pages/UnlockPage';
+import GrowthPage from './pages/GrowthPage';
+import VoicePage from './pages/VoicePage';
 
-const tabs = [
-  { id: 'upload', label: 'Загрузка', component: UploadSection },
-  { id: 'dashboard', label: 'Дашборд', component: DashboardSection },
-  { id: 'operations', label: 'Операции', component: OperationsSection },
-  { id: 'counterparties', label: 'Контрагенты', component: CounterpartiesSection },
-  { id: 'rules', label: 'Правила', component: RulesSection },
-  { id: 'invest', label: 'Инвесткопилка', component: InvestSection },
-  { id: 'regulars', label: 'Регулярные', component: RegularsSection },
-  { id: 'anomalies', label: 'Аномалии', component: AnomaliesSection },
-  { id: 'export', label: 'Экспорт', component: ExportSection },
-] as const;
+type PageId = 'overview' | 'intake' | 'clients' | 'unlock' | 'growth' | 'voice';
 
-type TabId = (typeof tabs)[number]['id'];
+type PageConfig = {
+  id: PageId;
+  label: string;
+  component: React.ComponentType;
+  description: string;
+};
 
-const TAB_STORAGE_KEY = 'finance-teh-active-tab';
+const pages: PageConfig[] = [
+  { id: 'overview', label: 'Обзор', component: OverviewPage, description: 'KPIs, загрузка и автоматизации' },
+  { id: 'intake', label: 'Приёмка', component: IntakePage, description: 'IMEI → карточка клиента → чек' },
+  { id: 'clients', label: 'Клиенты', component: ClientsPage, description: 'Здоровье сети и cross-sell' },
+  { id: 'unlock', label: 'Анлок', component: UnlockPage, description: 'Очередь Apple и SLA' },
+  { id: 'growth', label: 'Рост', component: GrowthPage, description: 'Маркетинг и эксперименты' },
+  { id: 'voice', label: 'Голос', component: VoicePage, description: 'Протоколы и QA' },
+];
+
+const PageRenderer: React.FC<{ activePage: PageId }> = ({ activePage }) => {
+  const current = pages.find((page) => page.id === activePage) ?? pages[0];
+  const Component = current.component;
+  return <Component />;
+};
 
 const AppContent: React.FC = () => {
-  const { state } = useAppState();
-  const hasData = state.operations.length > 0;
-  const [activeTab, setActiveTab] = React.useState<TabId>(() => {
-    const stored = typeof window !== 'undefined' ? (window.localStorage.getItem(TAB_STORAGE_KEY) as TabId | null) : null;
-    if (stored) return stored;
-    return hasData ? 'dashboard' : 'upload';
-  });
+  const [activePage, setActivePage] = React.useState<PageId>('overview');
+  const [navOpen, setNavOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TAB_STORAGE_KEY, activeTab);
-    }
-  }, [activeTab]);
-
-  React.useEffect(() => {
-    if (!hasData) {
-      setActiveTab('upload');
-    }
-  }, [hasData]);
-
-  const CurrentComponent = tabs.find((tab) => tab.id === activeTab)?.component ?? UploadSection;
+    setNavOpen(false);
+  }, [activePage]);
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <div>
-          <h1>Локальная админка финансов</h1>
-          <p className="subtitle">Личные финансы из CSV, полностью офлайн</p>
-        </div>
-        <IncludeInvestToggle />
-      </header>
-      <nav className="app-nav">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            className={`nav-button ${tab.id === activeTab ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
+    <div className="app-shell">
+      <aside className={`app-sidebar ${navOpen ? 'app-sidebar--open' : ''}`}>
+        <div className="app-brand">
+          <button className="app-brand__toggle" type="button" onClick={() => setNavOpen((prev) => !prev)}>
+            ≡
           </button>
-        ))}
-      </nav>
+          <div>
+            <p className="app-brand__title">Приёмка+</p>
+            <span className="app-brand__subtitle">CRM для сервисных центров</span>
+          </div>
+        </div>
+        <nav className="app-nav">
+          {pages.map((page) => (
+            <button
+              key={page.id}
+              type="button"
+              onClick={() => setActivePage(page.id)}
+              className={`app-nav__item ${activePage === page.id ? 'app-nav__item--active' : ''}`}
+            >
+              <span className="app-nav__label">{page.label}</span>
+              <span className="app-nav__desc">{page.description}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="app-sidebar__footer">
+          <p>Free CRM MVP • Объединяем кассу, приёмку и маркетинг</p>
+        </div>
+      </aside>
       <main className="app-main">
-        <CurrentComponent />
+        <PageRenderer activePage={activePage} />
       </main>
     </div>
   );
 };
 
 const App: React.FC = () => (
-  <AppStateProvider>
+  <CRMProvider>
     <AppContent />
-  </AppStateProvider>
+  </CRMProvider>
 );
 
 export default App;
